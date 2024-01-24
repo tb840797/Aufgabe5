@@ -23,7 +23,7 @@
       "properties": {
         "description": "Policy to ringfence Azure regions.",
         "displayName": "Policy to ringfence Azure regions.",
-        "enforcementMode": "DoNotEnforce",
+        "enforcementMode": "Default",
         "metadata": {},
         "parameters": {
           "listOfAllowedLocations": {
