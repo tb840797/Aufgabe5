@@ -8,7 +8,7 @@
                 "Default",
                 "DoNotEnforce"
             ],
-            "defaultValue": "DoNotEnforce",
+            "defaultValue": "Default",
             "metadata": {
                 "description": "Input will determine if the policyAssignment should be enforced or not."
             }
