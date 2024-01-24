@@ -1,0 +1,75 @@
+parameters:
+  - name: deploy
+    type: boolean
+    default: false
+
+steps:
+
+    #
+    # Diff
+    # List index changes
+    #
+
+  - task: PowerShell@2
+    displayName: "Diff"
+    inputs:
+      targetType: "inline"
+      script: |
+        $gitDiff = git diff --name-status HEAD^ HEAD
+        if($null -ne $gitDiff) {
+            $gitDiff | Write-Host
+            $gitDiff | Out-File -FilePath '/tmp/diff.txt'
+            
+            $deletedContent = git diff --diff-filter=D HEAD^ HEAD --no-prefix --no-renames
+            if($null -ne $deletedContent) {
+                $deletedContent = $deletedContent -match '^-' -replace '^([^-+ ]*)[-+ ]', '$1'
+                Write-Host '##[group]Deleted files content'
+                $deletedContent | Write-Host
+                Write-Host '##[endgroup]'
+                $deletedContent | Out-File -FilePath '/tmp/diffdeletedfiles.txt'
+            }
+        }
+        else {
+            Write-Host '##[error]The validation pipeline failed because there is currently no change to be processed'
+            exit 1
+        }
+
+    #
+    # CustomSorting
+    # If CustomSorting is enabled, sort files in diff by the .order file in each directory
+    #
+
+  - task: PowerShell@2
+    displayName: "CustomSorting"
+    condition: eq(variables['AZOPS_CUSTOM_SORT_ORDER'],'true')
+    inputs:
+      targetType: "filePath"
+      filePath: ".scripts/customSorting.ps1"
+
+  #
+  # Validate or Deploy
+  # If parameter "deploy" is set to true, then deploy the changes,
+  # otherwise validate the changes.
+  #
+
+  - task: PowerShell@2
+    ${{ if not(eq(parameters.deploy, 'true')) }}:
+      displayName: "Validate"
+    ${{ else }}:
+      displayName: "Deploy"
+    inputs:
+      targetType: "inline"
+      script: |
+        $Env:PSModulePath = $Env:PSModulePath, '$(modulesFolder)' -join [IO.Path]::PathSeparator
+        $CustomSortOrder = $Env:AZOPS_CUSTOM_SORT_ORDER -eq 'true'
+        $RunWhatIf = -not ('${{parameters.deploy}}' -eq 'true')
+        Import-PSFConfig -Path settings.json -Schema MetaJson -EnableException
+        $diff = Get-Content -Path /tmp/diff.txt
+        if(Test-Path -Path "/tmp/diffdeletedfiles.txt") {
+          $diffdeletedfiles = Get-Content -Path /tmp/diffdeletedfiles.txt
+          Invoke-AzOpsPush -ChangeSet $diff -DeleteSetContents $diffdeletedfiles -WhatIf:$RunWhatIf -CustomSortOrder:$CustomSortOrder
+        } 
+        else {
+          Invoke-AzOpsPush -ChangeSet $diff -WhatIf:$RunWhatIf -CustomSortOrder:$CustomSortOrder
+        }
+        Get-Job | Remove-Job -Force
