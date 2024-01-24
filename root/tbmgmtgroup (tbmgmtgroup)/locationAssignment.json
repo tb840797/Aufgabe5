@@ -1,0 +1,62 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "policyAssignmentEnforcementMode": {
+            "type": "string",
+            "allowedValues": [
+                "Default",
+                "DoNotEnforce"
+            ],
+            "defaultValue": "DoNotEnforce",
+            "metadata": {
+                "description": "Input will determine if the policyAssignment should be enforced or not."
+            }
+        },
+        "policyDefinitionId": {
+            "type": "string",
+            "defaultValue": "/providers/Microsoft.Authorization/policyDefinitions/e56962a6-4747-49cd-b67b-bf8b01975c4c",
+            "metadata": {
+                "description": "Provide the policyDefinition resourceId"
+            }
+        },
+        "policyAssignmentName": {
+            "type": "string",
+            "defaultValue": "AllowedLocations"
+        },
+        "policyDescription": {
+            "type": "string",
+            "defaultValue": "Policy to ringfence Azure regions."
+        },
+        "listOfAllowedLocations": {
+            "type": "array",
+            "defaultValue": [
+                "westeurope",
+                "northeurope"
+            ]
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Authorization/policyAssignments",
+            "apiVersion": "2019-09-01",
+            "name": "[parameters('policyAssignmentName')]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "location": "[deployment().location]",
+            "properties": {
+                "description": "[parameters('policyDescription')]",
+                "displayName": "[parameters('policyDescription')]",
+                "policyDefinitionId": "[parameters('policyDefinitionId')]",
+                "enforcementMode": "[parameters('policyAssignmentEnforcementMode')]",
+                "parameters": {
+                    "listOfAllowedLocations": {
+                        "value": "[parameters('listOfAllowedLocations')]"
+                    }
+                }
+            }
+        }
+    ]
+}
